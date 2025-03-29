@@ -1,0 +1,1960 @@
+<meta charset="UTF-8">
+<title>Jazzy Chat Room</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+@font-face {
+  font-family: 'Fuggles';
+  src: url('Fuggles-Regular.woff2') format('woff2');
+}
+
+:root {
+  --primary: #251512;
+  --secondary: #3a2218;
+  --accent: #d4a064;
+  --text: #f5e6d3;
+}
+
+body {
+  margin: 0;
+  background: var(--primary);
+  color: var(--text);
+  font-family: 'Arial', sans-serif;
+  min-height: 100vh; 
+  overflow-y: auto; 
+}
+
+.video-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 2s ease-in-out;
+}
+
+.video-background.active {
+  opacity: 0.5;
+}
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  height: 90vh; 
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px; 
+}
+
+.title {
+  font-family: 'Fuggles', cursive;
+  font-size: 4em;
+  color: var(--accent);
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  margin: 0;
+  margin-top: -20px;
+}
+
+.chat-container {
+  background: rgba(37, 21, 18, 0.7); 
+  border-radius: 15px;
+  padding: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  flex: 1; 
+  display: flex;
+  flex-direction: column;
+  max-height: calc(95vh - 100px); 
+  margin-top: -45px; 
+  backdrop-filter: blur(5px);
+}
+
+.messages {
+  flex: 1; 
+  overflow-y: auto;
+  margin-bottom: 15px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column-reverse; 
+}
+
+.message {
+  display: flex;
+  align-items: start;
+  margin-bottom: 15px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-right: 10px;
+  border: 2px solid var(--accent);
+}
+
+.message-content {
+  background: rgba(58, 34, 24, 0.5); 
+  padding: 10px 15px;
+  border-radius: 15px;
+  flex-grow: 1;
+}
+
+.message-content .mention {
+  color: var(--accent);
+  font-weight: bold;
+  background: rgba(212, 160, 100, 0.1);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.username {
+  color: var(--accent);
+  font-weight: bold;
+  margin-bottom: 5px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.username.owner {
+  color: #3498db !important;
+}
+
+.username.admin, .username.promoted-admin {
+  color: #2ecc71 !important;
+}
+
+.username.co-creator {
+  color: #ff4444 !important;
+}
+
+.input-container {
+  display: flex;
+  gap: 10px;
+  position: relative;
+}
+
+.chat-input {
+  flex-grow: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 25px;
+  background: rgba(58, 34, 24, 0.5); 
+  color: var(--text);
+  font-size: 16px;
+}
+
+.chat-input:focus {
+  outline: 2px solid var(--accent);
+  background: rgba(58, 34, 24, 0.7); 
+}
+
+.emoji-suggestions {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: rgba(58, 34, 24, 0.7); 
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 300px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+.emoji-suggestion {
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emoji-suggestion:hover {
+  background: rgba(212, 160, 100, 0.2);
+  border-radius: 5px;
+}
+
+.send-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 25px;
+  padding: 0 20px;
+  color: var(--primary);
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.send-button:hover {
+  transform: scale(1.05);
+}
+
+.users-online {
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 15px;
+  font-style: italic;
+}
+
+.jazz-note {
+  display: inline-block;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.messages::-webkit-scrollbar {
+  width: 8px;
+}
+
+.messages::-webkit-scrollbar-track {
+  background: rgba(58, 34, 24, 0.5);
+  border-radius: 4px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.audio-controls {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(37, 21, 18, 0.7); 
+  padding: 10px;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+
+.volume-slider {
+  width: 100px;
+  accent-color: var(--accent);
+}
+
+.mute-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.delete-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 14px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.delete-button:hover {
+  opacity: 1;
+  background: rgba(212, 160, 100, 0.2);
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.typing-indicator {
+  padding: 10px;
+  color: var(--accent);
+  font-style: italic;
+  font-size: 0.9em;
+  min-height: 20px;
+}
+
+.voice-controls {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(37, 21, 18, 0.7); 
+  padding: 10px;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+
+.mic-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.mic-button.recording {
+  background: #ff4444;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.audio-message {
+  margin-top: 10px;
+  background: rgba(58, 34, 24, 0.3);
+  padding: 10px;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.audio-message audio {
+  width: 100%;
+  height: 40px;
+}
+
+.shared-image {
+  max-width: 300px;  
+  max-height: 300px;
+  border-radius: 8px;
+  margin-top: 10px;
+  object-fit: contain;
+}
+
+.shared-video {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.language-select {
+  background: rgba(58, 34, 24, 0.5);
+  color: var(--text);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 2px 5px;
+  margin-left: 10px;
+  font-size: 0.8em;
+}
+
+.language-select option {
+  background: var(--primary);
+}
+
+.translation-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 0.8em;
+  padding: 2px 5px;
+  margin-left: 5px;
+  border-radius: 3px;
+}
+
+.translation-button:hover {
+  opacity: 1;
+  background: rgba(212, 160, 100, 0.2);
+}
+
+.translated-text {
+  font-size: 0.9em;
+  color: var(--text);
+  opacity: 0.8;
+  margin-top: 5px;
+  padding-left: 10px;
+  border-left: 2px solid var(--accent);
+}
+
+.emoji-list-toggle {
+  position: absolute;
+  right: 90px;
+  bottom: 7px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 16px;
+}
+
+.emoji-list {
+  position: absolute;
+  bottom: 100%;
+  right: 60px;
+  background: rgba(58, 34, 24, 0.7);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 5px;
+  max-height: 300px;
+  width: 250px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+.emoji-list-item {
+  padding: 5px;
+  cursor: pointer;
+  text-align: center;
+  border-radius: 5px;
+  transition: background 0.2s;
+}
+
+.emoji-list-item:hover {
+  background: rgba(212, 160, 100, 0.2);
+}
+
+.gif-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 16px;
+  position: absolute;
+  right: 130px;
+  bottom: 7px;
+}
+
+.gif-input {
+  position: absolute;
+  bottom: 100%;
+  right: 60px;
+  background: rgba(58, 34, 24, 0.7);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 5px;
+  width: 250px;
+  display: flex;
+  gap: 5px;
+}
+
+.gif-input input {
+  flex-grow: 1;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: rgba(37, 21, 18, 0.7);
+  color: var(--text);
+}
+
+.gif-input button {
+  background: var(--accent);
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.message img.gif {
+  max-width: 300px;
+  max-height: 300px;
+  border-radius: 10px;
+  margin-top: 5px;
+}
+
+.file-upload {
+  display: none;
+}
+
+.file-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 16px;
+  position: absolute;
+  right: 170px;
+  bottom: 7px;
+}
+
+.uploading-indicator {
+  color: var(--accent);
+  font-style: italic;
+  font-size: 0.9em;
+  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  animation: pulse 1.5s infinite;
+}
+
+.feedback-section {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+  background: rgba(37, 21, 18, 0.7);
+  border-radius: 15px;
+  backdrop-filter: blur(5px);
+}
+
+.feedback-section h2 {
+  font-family: 'Fuggles', cursive;
+  color: var(--accent);
+  font-size: 2.5em;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.feedback-list {
+  margin-bottom: 20px;
+}
+
+.feedback-item {
+  background: rgba(58, 34, 24, 0.5);
+  padding: 15px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.feedback-author {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.feedback-time {
+  color: var(--text);
+  font-size: 0.9em;
+}
+
+.feedback-input {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(58, 34, 24, 0.5);
+  color: var(--text);
+  margin-bottom: 10px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.feedback-submit {
+  background: var(--accent);
+  border: none;
+  border-radius: 25px;
+  padding: 10px 20px;
+  color: var(--primary);
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.feedback-submit:hover {
+  transform: scale(1.05);
+}
+
+.alias-button {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary);
+  font-size: 16px;
+  z-index: 2;
+}
+
+.alias-input {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: rgba(58, 34, 24, 0.7);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 5px;
+  width: 250px;
+  display: flex;
+  gap: 5px;
+  z-index: 2;
+}
+
+.curse-word-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.curse-word-input {
+  flex-grow: 1;
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid var(--accent);
+  background: rgba(58, 34, 24, 0.5);
+  color: var(--text);
+}
+
+.curse-word-container {
+  margin: 10px 0;
+  padding: 10px;
+  background: rgba(58, 34, 24, 0.5);
+  border-radius: 5px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.curse-word-item {
+  background: rgba(58, 34, 24, 0.3);
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.curse-word-text {
+  font-size: 0.9em;
+  text-align: center;
+  word-break: break-word;
+}
+
+.curse-votes {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.curse-words-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.vote-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2em;
+  padding: 5px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.vote-button:hover {
+  opacity: 1;
+}
+
+.vote-button.voted {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.vote-count {
+  min-width: 30px;
+  text-align: center;
+}
+
+.curse-word-warning {
+  color: #ff4444;
+  font-size: 0.8em;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.message.blocked {
+  display: none;
+}
+
+.blocked-message {
+  color: var(--accent);
+  font-style: italic;
+  padding: 10px;
+  background: rgba(58, 34, 24, 0.5);
+  border-radius: 10px;
+  margin: 5px 0;
+}
+
+.block-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 14px;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.block-button:hover {
+  opacity: 1;
+  background: rgba(212, 160, 100, 0.2);
+}
+
+.curse-word-item .delete-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 14px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 10px;
+}
+
+.curse-word-item .delete-button:hover {
+  opacity: 1;
+  background: rgba(212, 160, 100, 0.2);
+}
+
+.message-content .bold {
+  font-weight: bold;
+}
+
+.message-content .underline {
+  text-decoration: underline;
+}
+
+.message-content .strikethrough {
+  text-decoration: line-through;
+}
+
+.message-content .italic {
+  font-style: italic;
+}
+
+.room-selector {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.room-button {
+  background: var(--accent);
+  border: none;
+  border-radius: 25px;
+  padding: 8px 15px;
+  color: var(--primary);
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+
+.room-button.active {
+  opacity: 1;
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.room-button.staff {
+  background: #ff4444;
+}
+
+.now-playing {
+  background: rgba(37, 21, 18, 0.7);
+  padding: 10px;
+  border-radius: 25px;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  width: 100px;
+  margin-bottom: -5px;
+}
+
+.marquee {
+  animation: marquee 15s linear infinite;
+  display: inline-block;
+}
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.audio-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.audio-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+}
+
+.disclaimer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(37, 21, 18, 0.7);
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 100px;
+  color: var(--text);
+  font-size: 0.6em;
+  backdrop-filter: blur(5px);
+  z-index: 10;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.disclaimer-signature {
+  color: var(--accent);
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.message-counter {
+  position: fixed;
+  top: 150px;
+  right: 20px;
+  background: rgba(37, 21, 18, 0.7);
+  padding: 10px;
+  border-radius: 10px;
+  max-width: 100px;
+  font-size: 0.8em;
+  color: var(--text);
+  backdrop-filter: blur(5px);
+  z-index: 10;
+  text-align: center;
+}
+
+.message-counter.warning {
+  color: #ff4444;
+  animation: pulse 1s infinite;
+}
+
+.announcement-container {
+  position: fixed;
+  top: 80px; 
+  left: 20px;
+  background: rgba(255, 68, 68, 0.2);
+  border: 2px solid #ff4444;
+  border-radius: 10px;
+  max-width: 200px;
+  padding: 15px;
+  color: var(--text);
+  z-index: 9;
+  animation: fadeIn 0.5s ease-out;
+  text-align: center;
+  backdrop-filter: blur(5px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.edit-button {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: 14px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  margin-left: 5px;
+}
+
+.edit-button:hover {
+  opacity: 1;
+  background: rgba(212, 160, 100, 0.2);
+}
+
+.edited-indicator {
+  font-size: 0.8em;
+  color: var(--accent);
+  opacity: 0.7;
+  margin-left: 5px;
+  font-style: italic;
+}
+
+.editing-input {
+  width: 100%;
+  background: rgba(58, 34, 24, 0.7);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 8px;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+.private-message {
+  color: #2ecc71 !important;
+}
+</style>
+</head>
+<body>
+<video class="video-background active" id="video1" autoplay muted loop>
+  <source src="7_-Rainy-Jazz-Cafe-M&#xfa;sica-Jazz-Lenta-em-Ambiente-de-Cafeteria-para-Trabalho_-Estudo-e-Relaxamento-Yo.webm" type="video/webm">
+</video>
+<video class="video-background" id="video2" autoplay muted loop>
+  <source src="7_-4K-Cozy-Coffee-Shop-with-Smooth-Piano-Jazz-Music-for-Relaxing_-Studying-and-Working-YouTube-Googl.webm" type="video/webm">  
+</video>
+<video class="video-background" id="video3" autoplay muted loop>
+  <source src="10_-A-Rainy-Day-in-4K-Cozy-Coffee-Shop-❄-Background-Instrumental-to-Relax_-Study_-Work-YouTube-Googl.webm" type="video/webm">
+</video>
+<audio id="bgMusic1" loop>
+  <source src="&#x2615;_-15-Minutes-of-Smooth-Jazz-Piano-_-Perfect-Coffee-Time-_-Lobby-Music-_&#x2728;-_2nc3LIYdf8M_.ogg" type="audio/ogg">
+</audio>
+<audio id="bgMusic2" loop>
+  <source src="&#x3010;-20-Minutes-&#x3011;Night-in-Amsterdam-_-Relaxing-Jazz-Music-Countdown-Timer-_-ezmp3.cc-_.ogg" type="audio/ogg">
+</audio>
+<audio id="bgMusic3" loop>
+  <source src="15 Minutes of Jazz Music Instrumental - Stress Free Music [TubeRipper.cc].ogg" type="audio/ogg">
+</audio>
+<audio id="pingSound" style="display: none">
+  <source src="bell-98033.ogg" type="audio/ogg">
+</audio>
+<audio id="secretSong">
+  <source src="Never Gonna Give You Up  (Jazz Vrersion) - Original By Rick Astley.mp3" type="audio/mpeg">
+</audio>
+<div id="root"></div>
+
+<script type="text/babel">const EMOJI_MAP = {
+  'sunglasses': '😎',
+  'smile': '😊',
+  'heart': '❤️',
+  'coffee': '☕',
+  'music': '🎵',
+  'jazz': '🎷',
+  'cool': '😎',
+  'laugh': '😂',
+  'wink': '😉',
+  'party': '🎉',
+  'fire': '🔥',
+  'clap': '👏',
+  'star': '⭐',
+  'moon': '🌙',
+  'cat': '🐱',
+  'piano': '🎹',
+  'notes': '♪♫',
+  'sad': '😢',
+  'cry': '😭',
+  'broken': '💔',
+  'worried': '😟',
+  'frown': '☹️',
+  'tear': '😪',
+  'sobbing': '😭',
+  'depressed': '😔',
+  'thumbsup': '👍',
+  'thumbsdown': '👎',
+  'sun': '☀️',
+  'rain': '🌧️',
+  'rainbow': '🌈',
+  'cloud': '☁️',
+  'lightning': '⚡',
+  'snow': '❄️',
+  'wave': '👋',
+  'ok': '👌',
+  'peace': '✌️',
+  'love': '😍',
+  'think': '🤔',
+  'wow': '😮',
+  'yum': '😋',
+  'celebrate': '🎊',
+  'gift': '🎁',
+  'sparkles': '✨',
+  'cake': '🎂',
+  'balloon': '🎈'
+};
+const FILTER_THRESHOLD = 5;
+const LANGUAGES = {
+  'en': 'English',
+  'es': 'Spanish',
+  'fr': 'French',
+  'de': 'German',
+  'it': 'Italian',
+  'pt': 'Portuguese',
+  'ru': 'Russian',
+  'ja': 'Japanese',
+  'ko': 'Korean',
+  'zh': 'Chinese',
+  'ar': 'Arabic',
+  'hi': 'Hindi'
+};
+const ADMIN_LIST = new Set(['RubixYT', 'SpontaneousAcid', 'ssssss', 'cybudsthereelest', 'Thvbac_star3141', 'Ecliptic']);
+const SONGS = {
+  1: "Smooth Jazz Piano - Perfect Coffee Time",
+  2: "Night in Amsterdam - Relaxing Jazz Music", 
+  3: "Jazz Music Instrumental - Stress Free Music"
+};
+const convertToWebP = async file => {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      canvas.toBlob(blob => {
+        resolve(new File([blob], file.name.replace(/\.[^/.]+$/, '.webp'), {
+          type: 'image/webp'
+        }));
+      }, 'image/webp', 0.8);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+};
+const lastMessageTimes = new Map();
+const DUPLICATE_THRESHOLD = 3000;
+const App = () => {
+  const disclaimer = <div className="disclaimer">
+      There aren't A.I chatbots, AI is only being used for language translation.<br />
+      You can use my Chat room as inspiration!<br />
+      <div className="disclaimer-signature">-Saulo</div>
+    </div>;
+  const [message, setMessage] = React.useState('');
+  const [isMuted, setIsMuted] = React.useState(false);
+  const [volume, setVolume] = React.useState(0.5);
+  const [emojiSuggestions, setEmojiSuggestions] = React.useState([]);
+  const [shouldScrollToBottom, setShouldScrollToBottom] = React.useState(true);
+  const [typingUsers, setTypingUsers] = React.useState(new Set());
+  const [translations, setTranslations] = React.useState({});
+  const [selectedLanguage, setSelectedLanguage] = React.useState('en');
+  const [adminList, setAdminList] = React.useState(new Set(['RubixYT', 'SpontaneousAcid', 'ssssss', 'cybudsthereelest', 'Thvbac_star3141', 'Ecliptic']));
+  const [feedbackText, setFeedbackText] = React.useState('');
+  const [showEmojiList, setShowEmojiList] = React.useState(false);
+  const [showGifInput, setShowGifInput] = React.useState(false);
+  const [gifUrl, setGifUrl] = React.useState('');
+  const [showAliasInput, setShowAliasInput] = React.useState(false);
+  const [alias, setAlias] = React.useState('');
+  const [userAliases, setUserAliases] = React.useState({});
+  const [lastMessageData, setLastMessageData] = React.useState({
+    text: '',
+    timestamp: 0
+  });
+  const typingTimeoutRef = React.useRef(null);
+  const messagesEndRef = React.useRef(null);
+  const messagesContainerRef = React.useRef(null);
+  const audioRef1 = React.useRef(null);
+  const audioRef2 = React.useRef(null);
+  const audioRef3 = React.useRef(null);
+  const pingSound = React.useRef(null);
+  const room = React.useRef(new WebsimSocket()).current;
+  const [isRecording, setIsRecording] = React.useState(false);
+  const mediaRecorder = React.useRef(null);
+  const audioChunks = React.useRef([]);
+  const [activeVideo, setActiveVideo] = React.useState(1);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const [curseWords, setCurseWords] = React.useState([]);
+  const [newCurseWord, setNewCurseWord] = React.useState('');
+  const [blockedUsers, setBlockedUsers] = React.useState(new Set());
+  const [currentRoom, setCurrentRoom] = React.useState('public');
+  const [currentTrack, setCurrentTrack] = React.useState(1);
+  const [currentSong, setCurrentSong] = React.useState("Smooth Jazz Piano - Perfect Coffee Time");
+  const [messageCount, setMessageCount] = React.useState(0);
+  const [isWarning, setIsWarning] = React.useState(false);
+  const [announcement, setAnnouncement] = React.useState('');
+  const [editingMessageId, setEditingMessageId] = React.useState(null);
+  const [editingText, setEditingText] = React.useState('');
+  const [roomClickCount, setRoomClickCount] = React.useState(0);
+  const [secretSongDiscovered, setSecretSongDiscovered] = React.useState(false);
+  const handleClear = async () => {
+    const collection = room.collection(`message_${currentRoom}`);
+    const messages = collection.getList();
+    await Promise.all(messages.map(msg => collection.delete(msg.id)));
+    setMessageCount(0);
+    setIsWarning(false);
+  };
+  const formatUsername = username => {
+    if (userAliases[username]) {
+      return `${userAliases[username]} (${username})`;
+    }
+    if (username === "SauloSalty" || username === "stillgrass33428503") return `${username} [Owner]`;
+    if (username === "SpontaneousAcid") return `${username} [Co-creator]`;
+    if (username === "RubixYT" || adminList.has(username)) return `${username} [Admin]`;
+    return username;
+  };
+  const checkAndFilterMessage = text => {
+    const words = text.split(/\s+/);
+    const curseWords = room.collection('curse_word').getList();
+    const filteredWords = words.map(word => {
+      const matchingCurseWord = curseWords.find(cw => {
+        const voteDiff = cw.upvotes.length - cw.downvotes.length;
+        return voteDiff > 0 && word.toLowerCase() === cw.word.toLowerCase();
+      });
+      return matchingCurseWord ? '***' : word;
+    });
+    return filteredWords.join(' ');
+  };
+  const isOwnerOrCoCreator = username => {
+    return username === "SauloSalty" || username === "stillgrass33428503" || username === "SpontaneousAcid";
+  };
+  const formatTextStyles = text => {
+    text = text.replace(/\*(.*?)\*/g, '<span class="bold">$1</span>');
+    text = text.replace(/_(.*?)_/g, '<span class="underline">$1</span>');
+    text = text.replace(/-(.*?)-/g, '<span class="strikethrough">$1</span>');
+    text = text.replace(/\/(.*?)\//g, '<span class="italic">$1</span>');
+    return text;
+  };
+  React.useEffect(() => {
+    audioRef1.current = document.getElementById('bgMusic1');
+    audioRef2.current = document.getElementById('bgMusic2');
+    audioRef3.current = document.getElementById('bgMusic3');
+    pingSound.current = document.getElementById('pingSound');
+    const secretSongRef = document.getElementById('secretSong');
+    secretSongRef.volume = volume;
+    secretSongRef.muted = isMuted;
+    audioRef1.current.volume = volume;
+    audioRef2.current.volume = volume;
+    audioRef3.current.volume = volume;
+    audioRef1.current.muted = isMuted;
+    audioRef2.current.muted = isMuted; 
+    audioRef3.current.muted = isMuted;
+    const playAudio = () => {
+      if (currentTrack === 1) {
+        audioRef1.current.play();
+        audioRef2.current.pause();
+        audioRef3.current.pause();
+        audioRef2.current.currentTime = 0;
+        audioRef3.current.currentTime = 0;
+      } else if (currentTrack === 2) {
+        audioRef2.current.play();
+        audioRef1.current.pause();
+        audioRef3.current.pause();
+        audioRef1.current.currentTime = 0;
+        audioRef3.current.currentTime = 0;
+      } else {
+        audioRef3.current.play();
+        audioRef1.current.pause();
+        audioRef2.current.pause();
+        audioRef1.current.currentTime = 0;
+        audioRef2.current.currentTime = 0;
+      }
+    };
+    const handleEnded = () => {
+      setCurrentTrack(current => {
+        const next = current === 3 ? 1 : current + 1;
+        setCurrentSong(SONGS[next]);
+        return next;
+      });
+    };
+    audioRef1.current.addEventListener('ended', handleEnded);
+    audioRef2.current.addEventListener('ended', handleEnded);
+    audioRef3.current.addEventListener('ended', handleEnded);
+    const handleUserInteraction = () => {
+      playAudio();
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('touchstart', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('touchstart', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+      audioRef1.current?.removeEventListener('ended', handleEnded);
+      audioRef2.current?.removeEventListener('ended', handleEnded);
+      audioRef3.current?.removeEventListener('ended', handleEnded);
+    };
+  }, [volume, isMuted, currentTrack]);
+  React.useEffect(() => {
+    const video1 = document.getElementById('video1');
+    const video2 = document.getElementById('video2');
+    const video3 = document.getElementById('video3');
+    const switchVideos = () => {
+      if (activeVideo === 1) {
+        video1.classList.remove('active');
+        video2.classList.add('active');
+        video3.classList.remove('active');
+        setActiveVideo(2);
+      } else if (activeVideo === 2) {
+        video2.classList.remove('active');
+        video3.classList.add('active');
+        video1.classList.remove('active');
+        setActiveVideo(3);
+      } else {
+        video3.classList.remove('active');
+        video1.classList.add('active');
+        video2.classList.remove('active');
+        setActiveVideo(1);
+      }
+    };
+    const intervalId = setInterval(switchVideos, 15000);
+    return () => clearInterval(intervalId);
+  }, [activeVideo]);
+  React.useEffect(() => {
+    room.onmessage = event => {
+      if (event.data.type === 'speaking') {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (event.data.typing) {
+            newSet.add(event.data.username);
+          } else {
+            newSet.delete(event.data.username);
+          }
+          return newSet;
+        });
+      } else if (event.data.type === "typing") {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (event.data.typing) {
+            newSet.add(event.data.username);
+          } else {
+            newSet.delete(event.data.username);
+          }
+          return newSet;
+        });
+      } else if (event.data.type === "announcement") {
+        setAnnouncement(event.data.text);
+      }
+    };
+    const unsubscribe = room.collection(`message_${currentRoom}`).subscribe(messages => {
+      const latestMessage = messages[0];
+      if (latestMessage && latestMessage.mentions) {
+        if (latestMessage.mentions.includes(room.party.client.username)) {
+          if (pingSound.current) {
+            pingSound.current.currentTime = 0;
+            pingSound.current.play().catch(err => console.log('Error playing ping:', err));
+          }
+        }
+      }
+      if (shouldScrollToBottom && messagesContainerRef.current) {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      }
+      if (messages.length > 100) {
+        room.collection(`message_${currentRoom}`).delete(messages[messages.length - 1].id);
+      }
+      if (latestMessage) {
+        const duplicates = messages.filter(msg => msg.username === latestMessage.username && msg.text === latestMessage.text && msg.id !== latestMessage.id && Math.abs(new Date(msg.created_at) - new Date(latestMessage.created_at)) < DUPLICATE_THRESHOLD);
+        duplicates.forEach(async dupMsg => {
+          await room.collection(`message_${currentRoom}`).delete(dupMsg.id);
+        });
+      }
+    });
+    return () => {
+      unsubscribe();
+      if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+        mediaRecorder.current.stop();
+      }
+    };
+  }, [currentRoom, shouldScrollToBottom]);
+  React.useEffect(() => {
+    const messages = room.collection(`message_${currentRoom}`).getList();
+    setMessageCount(messages.length);
+    setIsWarning(messages.length >= 95);
+  }, [room.collection(`message_${currentRoom}`).getList(), currentRoom]);
+  const handleSubmit = async e => {
+    e.preventDefault();
+    if (message.startsWith('/anno ') && (room.party.client.username === "SauloSalty" || room.party.client.username === "stillgrass33428503" || room.party.client.username === "SpontaneousAcid" || room.party.client.username === "RubixYT" || adminList.has(room.party.client.username))) {
+      const annoText = message.slice(6);
+      room.send({
+        type: "announcement",
+        text: annoText
+      });
+      setMessage('');
+      return;
+    }
+    if (message.startsWith('/p ')) {
+      const match = message.match(/^\/p\s+(\w+)\s+(.+)$/);
+      if (match) {
+        const targetUser = match[1];
+        const privateText = match[2];
+        await room.collection(`message_${currentRoom}`).create({
+          text: privateText,
+          isPrivate: true,
+          targetUser: targetUser,
+          privateMessage: true
+        });
+        setMessage('');
+        return;
+      }
+    }
+    if (!message.trim()) return;
+    if (message.trim() === '/clear') {
+      await handleClear();
+      setMessage('');
+      return;
+    }
+    const currentTime = Date.now();
+    const lastTime = lastMessageData.timestamp;
+    const lastMsg = lastMessageData.text;
+    if (lastTime && currentTime - lastTime < DUPLICATE_THRESHOLD && message === lastMsg) {
+      setMessage('');
+      return;
+    }
+    setLastMessageData({
+      text: message,
+      timestamp: currentTime
+    });
+    const mentionRegex = /@(\w+)/g;
+    const mentions = message.match(mentionRegex);
+    const filteredText = checkAndFilterMessage(message);
+    if (gifUrl && gifUrl.includes('tenor.com')) {
+      await room.collection(`message_${currentRoom}`).create({
+        text: filteredText.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+        mentions: mentions ? mentions.map(m => m.substring(1)) : [],
+        gifUrl: gifUrl
+      });
+      setGifUrl('');
+    } else {
+      await room.collection(`message_${currentRoom}`).create({
+        text: filteredText.replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+        mentions: mentions ? mentions.map(m => m.substring(1)) : []
+      });
+    }
+    room.send({
+      type: "typing",
+      typing: false
+    });
+    setMessage('');
+    setEmojiSuggestions([]);
+    setEditingMessageId(null);
+    setEditingText('');
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+  const handleMessageChange = e => {
+    const newMessage = e.target.value;
+    setMessage(newMessage);
+    const matches = newMessage.match(/:([\w]+):/g);
+    if (matches) {
+      let processedMessage = newMessage;
+      matches.forEach(match => {
+        const emojiKey = match.slice(1, -1).toLowerCase();
+        if (EMOJI_MAP[emojiKey]) {
+          processedMessage = processedMessage.replace(match, EMOJI_MAP[emojiKey]);
+        }
+      });
+      setMessage(processedMessage);
+    }
+    const suggestionMatch = newMessage.match(/:(\w*)$/);
+    if (suggestionMatch) {
+      const search = suggestionMatch[1].toLowerCase();
+      const suggestions = Object.entries(EMOJI_MAP).filter(([key]) => key.includes(search)).slice(0, 5);
+      setEmojiSuggestions(suggestions);
+    } else {
+      setEmojiSuggestions([]);
+    }
+    room.send({
+      type: "typing",
+      typing: newMessage.length > 0
+    });
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      room.send({
+        type: "typing",
+        typing: false
+      });
+    }, 1000);
+  };
+  const insertEmoji = (emojiKey, emoji) => {
+    const match = message.match(/:(\w*)$/);
+    if (match) {
+      const beforeText = message.slice(0, message.length - match[0].length);
+      setMessage(beforeText + emoji + ' ');
+    }
+    setEmojiSuggestions([]);
+  };
+  const formatTime = timestamp => {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    audioRef1.current.muted = !isMuted;
+    audioRef2.current.muted = !isMuted;
+    audioRef3.current.muted = !isMuted;
+    document.getElementById('secretSong').muted = !isMuted;
+    if (!isMuted) {
+      audioRef1.current.pause();
+      audioRef2.current.pause();
+      audioRef3.current.pause();
+    } else {
+      if (currentTrack === 1) {
+        audioRef1.current.play();
+      } else if (currentTrack === 2) {
+        audioRef2.current.play();
+      } else {
+        audioRef3.current.play();
+      }
+    }
+  };
+  const handleVolumeChange = e => {
+    const newVolume = parseFloat(e.target.value);
+    setVolume(newVolume);
+    audioRef1.current.volume = newVolume;
+    audioRef2.current.volume = newVolume;
+    audioRef3.current.volume = newVolume;
+    document.getElementById('secretSong').volume = newVolume;
+    if (newVolume > 0) {
+      const secretSong = document.getElementById('secretSong');
+      if (secretSong.paused && (
+        (currentTrack === 1 && audioRef1.current.paused) || 
+        (currentTrack === 2 && audioRef2.current.paused) ||
+        (currentTrack === 3 && audioRef3.current.paused)
+      )) {
+        if (currentTrack === 1) {
+          audioRef1.current.play();
+        } else if (currentTrack === 2) {
+          audioRef2.current.play();
+        } else {
+          audioRef3.current.play();
+        }
+      }
+    }
+  };
+  const insertEmojiFromList = emoji => {
+    setMessage(prev => prev + emoji + ' ');
+    setShowEmojiList(false);
+  };
+  const messages = React.useSyncExternalStore(room.collection(`message_${currentRoom}`).subscribe, () => room.collection(`message_${currentRoom}`).getList());
+  const peers = React.useSyncExternalStore(room.party.subscribe, () => room.party.peers);
+  const handleMessageDoubleClick = username => {
+    setMessage(prevMessage => {
+      const mention = `@${username} `;
+      if (prevMessage.includes(mention)) return prevMessage;
+      return prevMessage + mention;
+    });
+  };
+  const submitCurseWord = async e => {
+    e.preventDefault();
+    if (!newCurseWord.trim()) return;
+    if (/^\[\w+\]\s+\w+/.test(newCurseWord)) {
+      alert("Please don't use [LETTER] word format in the filter. Just enter the word directly.");
+      return;
+    }
+    await room.collection('curse_word').create({
+      word: newCurseWord,
+      upvotes: [],
+      downvotes: []
+    });
+    setNewCurseWord('');
+  };
+  const handleVote = async (wordId, voteType) => {
+    const word = room.collection('curse_word').getList().find(w => w.id === wordId);
+    if (!word || word.username === room.party.client.username) return;
+    const upvotes = new Set(word.upvotes);
+    const downvotes = new Set(word.downvotes);
+    const userId = room.party.client.username;
+    if (voteType === 'up') {
+      if (upvotes.has(userId)) {
+        upvotes.delete(userId);
+      } else {
+        upvotes.add(userId);
+        downvotes.delete(userId);
+      }
+    } else {
+      if (downvotes.has(userId)) {
+        downvotes.delete(userId);
+      } else {
+        downvotes.add(userId);
+        upvotes.delete(userId);
+      }
+    }
+    await room.collection('curse_word').update(wordId, {
+      upvotes: Array.from(upvotes),
+      downvotes: Array.from(downvotes)
+    });
+  };
+  const skipTrack = () => {
+    const secretSong = document.getElementById('secretSong');
+    if (!secretSong.paused) {
+      secretSong.pause();
+      secretSong.currentTime = 0;
+      setSecretSongDiscovered(false);
+    }
+    setCurrentTrack(current => {
+      const next = current === 3 ? 1 : current + 1;
+      setCurrentSong(SONGS[next]);
+      return next;
+    });
+  };
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true
+      });
+      mediaRecorder.current = new MediaRecorder(stream);
+      mediaRecorder.current.ondataavailable = e => {
+        if (e.data.size > 0) {
+          audioChunks.current.push(e.data);
+        }
+      };
+      mediaRecorder.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+    }
+  };
+  const stopRecording = async () => {
+    if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
+      mediaRecorder.current.stop();
+      mediaRecorder.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
+      setIsUploading(true);
+      mediaRecorder.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunks.current, {
+          type: 'audio/ogg'
+        });
+        const audioUrl = await websim.upload(audioBlob);
+        await room.collection(`message_${currentRoom}`).create({
+          text: '🎤 Audio Message',
+          fileUrl: audioUrl,
+          fileType: 'audio'
+        });
+        audioChunks.current = [];
+        setIsUploading(false);
+      };
+    }
+  };
+  const translateMessage = async (messageId, text) => {
+    try {
+      const response = await fetch('/api/ai_completion', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: `Translate the following text into ${LANGUAGES[selectedLanguage]}. Return only the translated text.
+          
+          Original text: "${text}"
+          
+          <typescript-interface>
+          interface Response {
+            translation: string;
+          }
+          </typescript-interface>
+          
+          <example>
+          {
+            "translation": "Texto traducido aquí"
+          }
+          </example>`,
+          data: text
+        })
+      });
+      const data = await response.json();
+      setTranslations(prev => ({
+        ...prev,
+        [messageId]: {
+          ...prev[messageId],
+          [selectedLanguage]: data.translation
+        }
+      }));
+    } catch (error) {
+      console.error('Translation error:', error);
+    }
+  };
+  return <div className="app">
+      {disclaimer}
+      <div className={`message-counter ${isWarning ? 'warning' : ''}`}>
+        Chat capacity: {messageCount}/100
+      </div>
+      <div className="header">
+        <h1 className="title">
+          <span className="jazz-note">♪</span> Jazzy Chat Room <span className="jazz-note">♫</span>
+        </h1>
+        <div className="users-online">
+          {Object.keys(peers).length} jazz cats online
+        </div>
+      </div>
+      
+      <button type="button" className="alias-button" onClick={() => setShowAliasInput(!showAliasInput)} title="Set Alias">
+        👤
+      </button>
+      {showAliasInput && <div className="alias-input">
+          <input type="text" placeholder="Enter your alias..." value={alias} onChange={e => setAlias(e.target.value)} onKeyPress={e => {
+        if (e.key === 'Enter') {
+          setUserAliases(prev => ({
+            ...prev,
+            [room.party.client.username]: alias
+          }));
+          setShowAliasInput(false);
+          setAlias('');
+        }
+      }} />
+          <button onClick={() => {
+        setUserAliases(prev => ({
+          ...prev,
+          [room.party.client.username]: alias
+        }));
+        setShowAliasInput(false);
+        setAlias('');
+      }}>Set</button>
+          <button onClick={() => {
+        setShowAliasInput(false);
+        setAlias('');
+      }}>✕</button>
+        </div>}
+      
+      <div className="room-selector">
+        <button className={`room-button ${currentRoom === 'public' ? 'active' : ''}`} onClick={() => {
+        setCurrentRoom('public');
+        setRoomClickCount(prev => {
+          const newCount = prev + 1;
+          if (newCount === 3) {
+            const secretSong = document.getElementById('secretSong');
+            setSecretSongDiscovered(true);
+            audioRef1.current.pause();
+            audioRef2.current.pause();
+            audioRef3.current.pause();
+            secretSong.currentTime = 0;
+            secretSong.play();
+            setCurrentSong("Totally secret song.mp3");
+            setTimeout(() => alert("Secret song discovered!"), 100);
+            return 0;
+          }
+          return newCount;
+        });
+      }}>
+          Public Room
+        </button>
+        {(room.party.client.username === "SauloSalty" || room.party.client.username === "stillgrass33428503" || room.party.client.username === "SpontaneousAcid" || room.party.client.username === "RubixYT" || adminList.has(room.party.client.username)) && <button className={`room-button staff ${currentRoom === 'staff' ? 'active' : ''}`} onClick={() => setCurrentRoom('staff')}>
+            Staff Room
+          </button>}
+      </div>
+      
+      {announcement && <div className="announcement-container">
+          📢 {announcement}
+        </div>}
+      
+      <div className="chat-container">
+        {isUploading && <div className="uploading-indicator">
+            <span>📤</span> Uploading...
+          </div>}
+        <div className="messages" ref={messagesContainerRef} onScroll={e => {
+        const element = e.target;
+        const isAtBottom = element.scrollTop + element.offsetHeight >= element.scrollHeight;
+        setShouldScrollToBottom(isAtBottom);
+      }}>
+          {messages.map(msg => {
+          const isBlocked = blockedUsers.has(msg.username);
+          if (isBlocked) {
+            return <div key={msg.id} className="blocked-message">
+                User blocked, cannot see message
+                <button className="block-button" onClick={() => setBlockedUsers(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(msg.username);
+                return newSet;
+              })}>
+                  Unblock
+                </button>
+              </div>;
+          }
+          return <div key={msg.id} className="message">
+              <img className="avatar" src={`https://images.websim.ai/avatar/${msg.username}`} alt={msg.username} />
+              <div className={`message-content ${msg.privateMessage ? 'private-message' : ''}`}>
+                <div className="message-header">
+                  <div className={`username ${msg.username === "SauloSalty" || msg.username === "stillgrass33428503" ? "owner" : msg.username === "SpontaneousAcid" ? "co-creator" : msg.username === "RubixYT" || adminList.has(msg.username) ? "admin" : ""}`} onDoubleClick={() => handleMessageDoubleClick(msg.username)}>
+                    {formatUsername(msg.username)} • {formatTime(msg.created_at)}
+                    {msg.edited && <span className="edited-indicator">(edited)</span>}
+                    {msg.privateMessage && <span>(Private Message to {msg.targetUser})</span>}
+                    <select className="language-select" value={selectedLanguage} onChange={e => setSelectedLanguage(e.target.value)}>
+                      {Object.entries(LANGUAGES).map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+                    </select>
+                    <button className="translation-button" onClick={() => translateMessage(msg.id, msg.text)}>
+                      Translate
+                    </button>
+                    <button className="block-button" onClick={() => setBlockedUsers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.add(msg.username);
+                    return newSet;
+                  })} title="Block user">
+                      🚫
+                    </button>
+                    {msg.username === room.party.client.username && <button className="edit-button" onClick={() => {
+                    setEditingMessageId(msg.id);
+                    setEditingText(msg.text);
+                  }} title="Edit message">
+                        ✏️
+                      </button>}
+                    {(msg.username === room.party.client.username || isOwnerOrCoCreator(room.party.client.username)) && <button className="delete-button" onClick={() => room.collection(`message_${currentRoom}`).delete(msg.id)} title="Delete message">
+                        🗑️
+                      </button>}
+                  </div>
+                </div>
+                {(!msg.privateMessage || msg.username === room.party.client.username || msg.targetUser === room.party.client.username) && <>
+                    {editingMessageId === msg.id ? <form onSubmit={async e => {
+                  e.preventDefault();
+                  await room.collection(`message_${currentRoom}`).update(msg.id, {
+                    text: editingText,
+                    edited: true
+                  });
+                  setEditingMessageId(null);
+                  setEditingText('');
+                }}>
+                        <input type="text" value={editingText} onChange={e => setEditingText(e.target.value)} className="editing-input" autoFocus />
+                      </form> : <div dangerouslySetInnerHTML={{
+                  __html: msg.text.split(/@(\w+)/g).map((part, i) => i % 2 === 0 ? formatTextStyles(part) : `<span class="mention">@${part}</span>`).join('')
+                }} />}
+                    {translations[msg.id]?.[selectedLanguage] && <div className="translated-text">
+                        {translations[msg.id][selectedLanguage]}
+                      </div>}
+                    {msg.gifUrl && <img src={msg.gifUrl} alt="GIF" className="gif" />}
+                    {msg.fileUrl && msg.fileType === 'image' && <img src={msg.fileUrl} alt="Shared image" className="shared-image" />}
+                    {msg.fileUrl && msg.fileType === 'audio' && <div className="audio-message">
+                        <audio controls src={msg.fileUrl}></audio>
+                      </div>}
+                    {msg.fileUrl && msg.fileType === 'video' && <video controls className="shared-video">
+                        <source src={msg.fileUrl} type="video/mp4" />
+                        <source src={msg.fileUrl} type="video/webm" />
+                        Your browser does not support video playback.
+                      </video>}
+                    {msg.fileUrl && msg.fileType === 'file' && <div>
+                        <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer">
+                          Download File
+                        </a>
+                      </div>}
+                  </>}
+              </div>
+            </div>;
+        })}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="typing-indicator">
+          {typingUsers.size > 0 && Array.from(typingUsers).filter(user => user !== room.party.client.username).join(", ") + (typingUsers.size > 0 ? " typing..." : "")}
+        </div>
+
+        <form onSubmit={handleSubmit} className="input-container">
+          <input type="file" className="file-upload" id="file-upload" onChange={async e => {
+          const file = e.target.files[0];
+          if (file) {
+            setIsUploading(true);
+            try {
+              let fileToUpload = file;
+              let fileType = file.type;
+              if (file.type.startsWith('image/')) {
+                fileToUpload = await convertToWebP(file);
+                fileType = 'image/webp';
+              }
+              const url = await websim.upload(fileToUpload);
+              if (fileType.startsWith('image/')) {
+                await room.collection(`message_${currentRoom}`).create({
+                  text: '',
+                  fileUrl: url,
+                  fileType: 'image'
+                });
+              } else if (file.type.startsWith('audio/')) {
+                await room.collection(`message_${currentRoom}`).create({
+                  text: '',
+                  fileUrl: url,
+                  fileType: 'audio'
+                });
+              } else if (file.type.startsWith('video/')) {
+                await room.collection(`message_${currentRoom}`).create({
+                  text: '',
+                  fileUrl: url,
+                  fileType: 'video'
+                });
+              } else {
+                await room.collection(`message_${currentRoom}`).create({
+                  text: '',
+                  fileUrl: url,
+                  fileType: 'file'
+                });
+              }
+            } catch (error) {
+              console.error('Error uploading file:', error);
+            } finally {
+              setIsUploading(false);
+            }
+          }
+        }} />
+          <label htmlFor="file-upload" className="file-button" title="Upload file">
+            📎
+          </label>
+          <button type="button" className="gif-button" onClick={() => setShowGifInput(!showGifInput)} title="Add GIF">
+            GIF
+          </button>
+          {showGifInput && <div className="gif-input">
+              <input type="text" placeholder="Paste Tenor GIF URL..." value={gifUrl} onChange={e => setGifUrl(e.target.value)} />
+              <button onClick={() => setShowGifInput(false)}>✕</button>
+            </div>}
+          <input type="text" value={message} onChange={handleMessageChange} placeholder="Send a message... (try typing :emoji)" className="chat-input" />
+          <button type="button" className="emoji-list-toggle" onClick={() => setShowEmojiList(!showEmojiList)}>
+            😊
+          </button>
+          {showEmojiList && <div className="emoji-list">
+              {Object.entries(EMOJI_MAP).map(([key, emoji]) => <div key={key} className="emoji-list-item" onClick={() => insertEmojiFromList(emoji)} title={`:${key}:`}>
+                  {emoji}
+                </div>)}
+            </div>}
+          {emojiSuggestions.length > 0 && <div className="emoji-suggestions">
+              {emojiSuggestions.map(([key, emoji]) => <div key={key} className="emoji-suggestion" onClick={() => insertEmoji(key, emoji)}>
+                  {emoji} :{key}:
+                </div>)}
+            </div>}
+          <button type="submit" className="send-button">Send</button>
+        </form>
+      </div>
+
+      <div className="feedback-section">
+        <h2>Share Your Ideas</h2>
+        <div className="feedback-list">
+          {React.useSyncExternalStore(room.collection('feedback').subscribe, () => room.collection('feedback').getList()).map(feedback => <div key={feedback.id} className="feedback-item">
+              <div className="feedback-header">
+                <span className="feedback-author">{feedback.username}</span>
+                <span className="feedback-time">{formatTime(feedback.created_at)}</span>
+              </div>
+              <div>{feedback.text}</div>
+              {(feedback.username === room.party.client.username || isOwnerOrCoCreator(room.party.client.username)) && <button className="delete-button" onClick={() => room.collection('feedback').delete(feedback.id)} title="Delete feedback">
+                  🗑️
+                </button>}
+            </div>)}
+        </div>
+        
+        <form onSubmit={async e => {
+        e.preventDefault();
+        if (!feedbackText.trim()) return;
+        await room.collection('feedback').create({
+          text: feedbackText
+        });
+        setFeedbackText('');
+      }}>
+          <textarea className="feedback-input" value={feedbackText} onChange={e => setFeedbackText(e.target.value)} placeholder="Share your ideas for improving the site... (If i implement your idea, you'll get promoted to Admin!)" />
+          <button type="submit" className="feedback-submit">Submit Feedback</button>
+        </form>
+      </div>
+
+      <div className="curse-word-container">
+        <h3>Community Word Filter</h3>
+        <form onSubmit={submitCurseWord} className="curse-word-form">
+          <input type="text" value={newCurseWord} onChange={e => setNewCurseWord(e.target.value)} placeholder="Add word to filter... (no [LETTER] word format)" className="curse-word-input" />
+          <button type="submit" className="send-button">Add</button>
+        </form>
+        
+        <div className="curse-words-grid">
+          {React.useSyncExternalStore(room.collection('curse_word').subscribe, () => room.collection('curse_word').getList()).map(word => {
+          const voteDiff = word.upvotes.length - word.downvotes.length;
+          const userVoted = {
+            up: word.upvotes.includes(room.party.client.username),
+            down: word.downvotes.includes(room.party.client.username)
+          };
+          return <div key={word.id} className="curse-word-item">
+              <span className="curse-word-text">{word.word}</span>
+              <div className="curse-votes">
+                <button className={`vote-button ${userVoted.up ? 'voted' : ''}`} onClick={() => handleVote(word.id, 'up')} disabled={word.username === room.party.client.username}>
+                  👍
+                </button>
+                <span className="vote-count">{voteDiff}</span>
+                <button className={`vote-button ${userVoted.down ? 'voted' : ''}`} onClick={() => handleVote(word.id, 'down')} disabled={word.username === room.party.client.username}>
+                  👎
+                </button>
+                {(word.username === room.party.client.username || isOwnerOrCoCreator(room.party.client.username)) && <button className="delete-button" onClick={() => room.collection('curse_word').delete(word.id)} title="Delete word">
+                    🗑️
+                  </button>}
+              </div>
+            </div>;
+        })}
+        </div>
+      </div>
+
+      <div className="audio-controls">
+        <div className="now-playing">
+          <span className="marquee">Now Playing: {currentSong}</span>
+        </div>
+        <div className="audio-buttons">
+          <button onClick={toggleMute} className="mute-button">
+            {isMuted ? '▶️' : '⏸️'}
+          </button>
+          <button onClick={skipTrack} className="mute-button">
+            ⏭️
+          </button>
+        </div>
+        <input type="range" min="0" max="1" step="0.01" value={volume} onChange={handleVolumeChange} className="volume-slider" />
+      </div>
+
+      <div className="voice-controls">
+        <button onClick={isRecording ? stopRecording : startRecording} className={`mic-button ${isRecording ? 'recording' : ''}`} title={isRecording ? 'Stop Recording' : 'Start Recording'}>
+          {isRecording ? '⏹️' : '🎤'}
+        </button>
+      </div>
+    </div>;
+};
+ReactDOM.render(<App />, document.getElementById('root'));</script>
+</body></html>
